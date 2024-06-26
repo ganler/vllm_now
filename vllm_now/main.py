@@ -14,7 +14,7 @@ def _save_file(file_name, content):
         f.write(content)
 
 
-def make_nginx_conf(worker_connections=8192, servers=8):
+def make_nginx_conf(worker_connections=8192, n_servers=8):
     return r"""events {
     worker_connections [WORKER_CONNECTIONS];
 }
@@ -33,7 +33,7 @@ http {
         "[WORKER_CONNECTIONS]", str(worker_connections)
     ).replace(
         "[SERVER_LIST]",
-        "\n        ".join([f"server vllm-server-{i}:8000;" for i in range(servers)]),
+        "\n        ".join([f"server vllm-server-{i}:8000;" for i in range(n_servers)]),
     )
 
 
@@ -44,15 +44,7 @@ def get_available_physical_gpus() -> List[int]:
     return [gpu.id for gpu in GPUtil.getGPUs()]
 
 
-def make_docker_compose_yml(n_gpus_per_group, vllm_version, fire_kwargs):
-    gpus_idx = get_available_physical_gpus()
-    # split them into groups by `n_gpus_per_group`
-    gpu_groups = [
-        gpus_idx[i : i + n_gpus_per_group]
-        for i in range(0, len(gpus_idx), n_gpus_per_group)
-        if len(gpus_idx[i : i + n_gpus_per_group]) == n_gpus_per_group
-    ]
-
+def make_docker_compose_yml(gpu_groups, vllm_version, fire_kwargs):
     _kwarg_split = "\n    - "
     flag_kwargs_field = _kwarg_split.join(
         [
@@ -74,7 +66,7 @@ def make_docker_compose_yml(n_gpus_per_group, vllm_version, fire_kwargs):
           devices:
             - driver: nvidia
               capabilities: [gpu]
-              device_ids: ["{gpus}"]
+              device_ids: {gpus}
 """
     )
 
@@ -93,7 +85,7 @@ x-vllm-server-base: &vllm-server-base
   volumes:
     - {hf_home}:/root/.cache/huggingface:rw
 services:
-{_double_newline.join([per_instance_template(i, ",".join(map(str, gpus))) for i, gpus in enumerate(gpu_groups)])}
+{_double_newline.join([per_instance_template(i, list(map(str, gpus))) for i, gpus in enumerate(gpu_groups)])}
   load-balancer:
     image: nginx:latest
     ports:
@@ -101,7 +93,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      {_depends_on_split.join([f"--vllm-server-{i}" for i in range(len(gpu_groups))])}
+      {_depends_on_split.join([f"- vllm-server-{i}" for i in range(len(gpu_groups))])}
 """
 
 
@@ -126,6 +118,14 @@ def main(**fire_kwargs):
     assert n_gpus_per_group >= 1
     assert "model" in fire_kwargs, "model argument is required"
 
+    gpus_idx = get_available_physical_gpus()
+    # split them into groups by `n_gpus_per_group`
+    gpu_groups = [
+        gpus_idx[i : i + n_gpus_per_group]
+        for i in range(0, len(gpus_idx), n_gpus_per_group)
+        if len(gpus_idx[i : i + n_gpus_per_group]) == n_gpus_per_group
+    ]
+
     vllm_version = fire_kwargs.get("vllm_version", "latest")
     fire_kwargs.pop("vllm_version", None)
 
@@ -134,9 +134,9 @@ def main(**fire_kwargs):
         assert isinstance(v, (int, float, str)), f"Invalid type for {k}: {type(v)}"
     _save_file(
         "docker-compose.yml",
-        make_docker_compose_yml(n_gpus_per_group, vllm_version, fire_kwargs),
+        make_docker_compose_yml(gpu_groups, vllm_version, fire_kwargs),
     )
-    _save_file("nginx.conf", make_nginx_conf())
+    _save_file("nginx.conf", make_nginx_conf(n_servers=len(gpu_groups)))
     print(
         """\
 # [Launch] vllm servers for your favorite models
