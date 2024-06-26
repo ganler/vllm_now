@@ -121,7 +121,6 @@ def _clean_argv(fire_kwargs):
             vllm_args.pop(idx)
 
 
-@Fire
 def main(**fire_kwargs):
     n_gpus_per_group = fire_kwargs.get("tensor_parallel_size", 1)
     assert n_gpus_per_group >= 1
@@ -138,3 +137,7 @@ def main(**fire_kwargs):
         make_docker_compose_yml(n_gpus_per_group, vllm_version, fire_kwargs),
     )
     _save_file("nginx.conf", make_nginx_conf())
+
+
+def run():
+    Fire(main)
