@@ -1,0 +1,66 @@
+version: "3"
+
+x-vllm-server-base: &vllm-server-base
+  image: vllm/vllm-openai:latest
+  command:
+    - --disable-log-requests   # To save your eyes from the logs
+    - --model=ise-uiuc/Magicoder-S-DS-6.7B
+  volumes:
+    - /scratch/huggingface:/root/.cache/huggingface:rw
+
+services:
+  vllm-server-0:
+    <<: *vllm-server-base
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["0"]
+
+
+  vllm-server-1:
+    <<: *vllm-server-base
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["1"]
+
+
+  vllm-server-2:
+    <<: *vllm-server-base
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["2"]
+
+
+  vllm-server-3:
+    <<: *vllm-server-base
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["3"]
+
+
+  load-balancer:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      --vllm-server-0
+      --vllm-server-1
+      --vllm-server-2
+      --vllm-server-3
