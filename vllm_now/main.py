@@ -137,6 +137,16 @@ def main(**fire_kwargs):
         make_docker_compose_yml(n_gpus_per_group, vllm_version, fire_kwargs),
     )
     _save_file("nginx.conf", make_nginx_conf())
+    print(
+        """\
+# [Launch] vllm servers for your favorite models
+docker-compose -d up
+# [Check] the status
+docker-compose logs -t -f
+# [Stop] the servers
+docker-compose stop
+"""
+    )
 
 
 def run():
