@@ -18,12 +18,10 @@ def make_nginx_conf(worker_connections=8192, servers=8):
     return r"""events {
     worker_connections [WORKER_CONNECTIONS];
 }
-
 http {
     upstream vllm_servers {
         [SERVER_LIST]
     }
-
     server {
         listen 80;
         location / {
@@ -87,7 +85,6 @@ def make_docker_compose_yml(n_gpus_per_group, vllm_version, fire_kwargs):
 
     return f"""\
 version: "3"
-
 x-vllm-server-base: &vllm-server-base
   image: vllm/vllm-openai:{vllm_version}
   command:
@@ -95,10 +92,8 @@ x-vllm-server-base: &vllm-server-base
     - {_kwarg_split.join([f"--{k.replace('_', '-')}={v}" for k, v in fire_kwargs.items() if not isinstance(v, bool)])}{flag_kwargs_field}
   volumes:
     - {hf_home}:/root/.cache/huggingface:rw
-
 services:
 {_double_newline.join([per_instance_template(i, ",".join(map(str, gpus))) for i, gpus in enumerate(gpu_groups)])}
-
   load-balancer:
     image: nginx:latest
     ports:
