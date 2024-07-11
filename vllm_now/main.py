@@ -14,7 +14,7 @@ def _save_file(file_name, content):
         f.write(content)
 
 
-def make_nginx_conf(worker_connections=8192, n_servers=8):
+def make_nginx_conf(worker_connections=4096, n_servers=8):
     return r"""events {
     worker_connections [WORKER_CONNECTIONS];
 }
@@ -23,6 +23,12 @@ http {
         [SERVER_LIST]
     }
     server {
+        gzip on;
+        keepalive_timeout 600s;
+        proxy_read_timeout 600s;
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        fastcgi_read_timeout 600s;
         listen 80;
         location / {
             proxy_pass http://vllm_servers;
