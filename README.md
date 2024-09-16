@@ -5,7 +5,7 @@ pip install "vllm_now @ git+https://github.com/ganler/vllm_now@main" --upgrade
 vllm_now --model "ise-uiuc/Magicoder-S-DS-6.7B"
 
 # [Launch] vllm servers for your favorite models
-docker-compose -d up
+docker-compose up -d
 # [Check] the status
 docker-compose logs -t -f
 # [Stop] the servers

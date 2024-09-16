@@ -146,7 +146,7 @@ def main(**fire_kwargs):
     print(
         """\
 # [Launch] vllm servers for your favorite models
-docker-compose -d up
+docker-compose up -d
 # [Check] the status
 docker-compose logs -t -f
 # [Stop] the servers
