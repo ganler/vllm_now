@@ -1,22 +1,22 @@
-To save Yuxiang's time from typing 8 times of `docker run vllm...` as well as launching the load balancer simultaneously:
-
 ```bash
 pip install "vllm_now @ git+https://github.com/ganler/vllm_now@main" --upgrade
 vllm_now --model "ise-uiuc/Magicoder-S-DS-6.7B"
 
 # [Launch] vllm servers for your favorite models
-docker-compose up -d
+docker compose up -d
 # [Check] the status
-docker-compose logs -t -f
+docker compose logs -t -f
 # [Stop] the servers
-docker-compose stop
+docker compose stop
 ```
 
 > [!Note]
 >
-> To install `docker-compose`: https://docs.docker.com/compose/install/linux/#install-using-the-repository
+> To install `docker compose`: https://docs.docker.com/compose/install/linux/#install-using-the-repository
 >
 > Quick command for Ubuntu: `sudo apt-get install docker-compose-plugin`
+>
+> Note sometimes your `docker compose` can be `docker-compose` ([Why?](https://stackoverflow.com/questions/66514436/difference-between-docker-compose-and-docker-compose)).
 
 > [!Tip]
 >
