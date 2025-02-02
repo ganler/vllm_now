@@ -2,12 +2,14 @@
 
 import os
 import re
+import shutil
 import sys
 from typing import List
-import shutil
 
 import GPUtil
 from fire import Fire
+
+VLLM_NOW_PORT = os.getenv("VLLM_NOW_PORT", 80)
 
 
 def _save_file(file_name, content):
@@ -105,7 +107,7 @@ services:
   load-balancer:
     image: nginx:latest
     ports:
-      - "80:80"
+      - "{VLLM_NOW_PORT}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -191,7 +193,9 @@ def main(**fire_kwargs):
 """
     )
 
-    print("vLLM API will be launched at http://localhost:80/v1")
+    print(
+        f"vLLM API will be launched at http://localhost:{VLLM_NOW_PORT}/v1 after the model is loaded."
+    )
 
 
 def run():

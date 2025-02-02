@@ -9,6 +9,7 @@ docker compose logs -t -f
 # [Stop] the servers
 docker compose stop
 ```
+The model will be served via `http://localhost:${VLLM_NOW_PORT}` where if `VLLM_NOW_PORT` is not set, it defaults to `80`.
 
 > [!Note]
 >
