@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from typing import List
+import shutil
 
 import GPUtil
 from fire import Fire
@@ -80,16 +81,25 @@ def make_docker_compose_yml(gpu_groups, vllm_version, fire_kwargs):
 
     _double_newline = "\n\n"
     _depends_on_split = "\n      "
+    _new_volume = "    # NEW VOLUME HERE"
+    _new_environment = "    # NEW ENVIRONMENT HERE"
+    _env_starter = "  environment:"
 
-    return f"""\
-version: "3"
+    env_used = False
+
+    config = f"""\
 x-vllm-server-base: &vllm-server-base
   image: vllm/vllm-openai:{vllm_version}
+  ipc: host
   command:
     - --disable-log-requests   # To save your eyes from the logs
     - {_kwarg_split.join([f"--{k.replace('_', '-')}={v}" for k, v in fire_kwargs.items() if not isinstance(v, bool)])}{flag_kwargs_field}
   volumes:
     - {hf_home}:/root/.cache/huggingface:rw
+{_new_volume}
+{_env_starter}
+{_new_environment}
+
 services:
 {_double_newline.join([per_instance_template(i, list(map(str, gpus))) for i, gpus in enumerate(gpu_groups)])}
   load-balancer:
@@ -101,6 +111,27 @@ services:
     depends_on:
       {_depends_on_split.join([f"- vllm-server-{i}" for i in range(len(gpu_groups))])}
 """
+
+    hf_token_path = os.getenv("HF_TOKEN_PATH", None)
+    if hf_token_path:
+        config = config.replace(
+            _new_volume,
+            f"    - {hf_token_path}:/root/.cache/hf_hub_token\n{_new_volume}",
+        )
+        config = config.replace(
+            _new_environment,
+            f"    - HF_TOKEN_PATH=/root/.cache/hf_hub_token\n{_new_environment}",
+        )
+        env_used = True
+
+    if not env_used:
+        config = config.replace("\n" + _env_starter, "")
+
+    # clean up
+    config = config.replace("\n" + _new_volume, "")
+    config = config.replace("\n" + _new_environment, "")
+
+    return config
 
 
 def _clean_argv(fire_kwargs):
@@ -117,6 +148,12 @@ def _clean_argv(fire_kwargs):
         val = vllm_args.pop(idx)
         if not re.compile(r"^--vllm[_-]version=.*$").match(val):
             vllm_args.pop(idx)
+
+
+def _get_docker_compose_command():
+    if shutil.which("docker-compose"):
+        return "docker-compose"
+    return "docker compose"
 
 
 def main(**fire_kwargs):
@@ -144,16 +181,22 @@ def main(**fire_kwargs):
     )
     _save_file("nginx.conf", make_nginx_conf(n_servers=len(gpu_groups)))
     print(
-        """\
+        f"""\
 # [Launch] vllm servers for your favorite models
-docker-compose up -d
+{_get_docker_compose_command()} up -d
 # [Check] the status
-docker-compose logs -t -f
+{_get_docker_compose_command()} logs -t -f
 # [Stop] the servers
-docker-compose stop
+{_get_docker_compose_command()} stop
 """
     )
+
+    print("vLLM API will be launched at http://localhost:80/v1")
 
 
 def run():
     Fire(main)
+
+
+if __name__ == "__main__":
+    run()
